@@ -10,18 +10,35 @@ import numpy as np
 from PIL import Image, ImageSequence
 from utils import load
 
-GLOBAL_count = 0
+GLOBAL_count = 1
+
+def send_to_dir(prefix, fname):
+    """
+    :param prefix:  str Should be either 'gt' or 'img'
+    :param fname:   str Name to check for words post or pre
+    :return:        str The directory to send file to
+    """
+    save_dir = None
+    for word in fname.split('_'):
+        if word == 'post':
+            save_dir = f'./data/{prefix}_post'
+        elif word == 'pre':
+            save_dir = f'./data/{prefix}_pre'
+    return save_dir
+
 
 def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
     global GLOBAL_count
-    for newDir in ('./OUPUTfromJson', './OUTPUTfromTif'):
+    for newDir in ('./data', './data/gt_post', './data/gt_pre', './data/img_post', './data/img_pre'):
         os.makedirs(newDir, exist_ok=True)
 
     if drawJSON:
         for fname in os.listdir(json_root):
             temp_str = f'{GLOBAL_count} Saving {fname}...'
-            print(f'{temp_str:<70}', end="")
-            save_path = os.path.join('OUPUTfromJson', f'{fname[:-4]}png')
+            print(f'{temp_str:<70}', end="", flush=True)
+            # Handle save path
+            save_path = os.path.join(send_to_dir('gt', fname), f'{fname[:-5]}_target.png')
+
             data = load(os.path.join(json_root, fname))
             try:
                 features = data['features']['xy']
@@ -81,7 +98,7 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
             except KeyError as e:
                 image = np.zeros((SIZE, SIZE), dtype=np.uint8)
                 Image.fromarray(image).save(save_path)
-                print("> Features were not loaded properly; saving GT with all zeros")
+                print("> Feature was not loaded properly OR no polygons to draw; saving GT with all zeros")
                 #print(f"------- ERROR with file {fname}: {e} -------\n"
                       #f"\t> Features were not loaded properly\n"
                       #f"\tfeature = data['features']['xy']\n"
@@ -93,16 +110,15 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
 
         print("drawJSON complete")
 
-
-
     if tif2composite:
         GLOBAL_count = 0
         for fname in os.listdir(tif_root):  # inside directory
             temp_str = f'{GLOBAL_count} Saving {fname}...'
-            print(f'{temp_str:<70}', end="")
+            print(f'{temp_str:<70}', end="", flush=True)
 
             tiff_file = os.path.join(tif_root, fname)
-            save_path = os.path.join('OUTPUTfromTif', f'{fname[:-4]}.png')
+            # Handle save path
+            save_path = os.path.join(send_to_dir('img', fname), f'{fname[:-4]}.png')
             try:
                 with rasterio.open(tiff_file) as src:
                     image = src.read()
