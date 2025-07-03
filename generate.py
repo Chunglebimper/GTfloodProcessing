@@ -21,20 +21,20 @@ def send_to_dir(prefix, fname):
     save_dir = None
     for word in fname.split('_'):
         if word == 'post':
-            save_dir = f'data1/{prefix}_post'
+            save_dir = f'data/{prefix}_post'
         elif word == 'pre':
-            save_dir = f'data1/{prefix}_pre'
+            save_dir = f'data/{prefix}_pre'
     return save_dir
 
 
 def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
     global GLOBAL_count
-    for newDir in ('./data1', './data1/gt_post', './data1/gt_pre', './data1/img_post', './data1/img_pre'):
+    for newDir in ('./data', './data/gt_post', './data/gt_pre', './data/img_post', './data/img_pre'):
         os.makedirs(newDir, exist_ok=True)
 
     if drawJSON:
         for fname in os.listdir(json_root):
-            temp_str = f'{GLOBAL_count} Saving {fname}...'
+            temp_str = f'{GLOBAL_count:>5} Saving {fname}...'
             print(f'{temp_str:<70}', end="", flush=True)
             # Handle save path
             save_path = os.path.join(send_to_dir('gt', fname), f'{fname[:-5]}_target.png')
@@ -44,7 +44,8 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
                 features = data['features']['xy']
 
                 # fig = figure_object, ax = axes_object for indexing subplots
-                fig, ax = plt.subplots(dpi=100, figsize=(10.24, 10.24), )
+                fig, ax = plt.subplots(dpi=100, figsize=(10.24, 10.24),  )
+                fig.set_facecolor("#000000") # default is 255/ #FFFFFF which causes an error
 
                 # For every feature get the class and coordinates for plotting
                 for feature in features:
@@ -64,17 +65,6 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
                         'destroyed': '#040404',
                     }.get(level_of_destruction, '#000000')  # Default to black if level_of_destruction is invalid
 
-                    """
-                    # Add polygon overlay and determine color of edge
-                    color = {
-                        'no-damage': '#010101',
-                        'minor-damage': '#020202',
-                        'moderate-damage': '#030303',
-                        'major-damage': '#040404',
-                        'destroyed': '#050505',
-                    }.get(level_of_destruction, '#000000')  # Default to black if level_of_destruction is invalid
-                    """
-
                     # Create patch with color handling from above
                     patch = patches.Polygon(coords, closed=True, edgecolor=color, facecolor=color, fill=True,
                                             linewidth=0, aa=False, rasterized=True)
@@ -83,32 +73,32 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
 
                 ax.axis('off')
                 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # remove padding
-                plt.savefig("buffer0.png", bbox_inches='tight', pad_inches=0)
+                plt.savefig("buffer.png", bbox_inches='tight', pad_inches=0)
                 plt.close(fig)
 
-                with rasterio.open('buffer0.png') as src:
-                    image = src.read()
-                    image = np.delete(image, obj=[1, 2, 3], axis=0)
-                    image = src.read(1).squeeze()
-                    # image = (255 * (image / image.max())).astype('uint8')  # Normalize for display
-                    Image.fromarray(image).save('buffer1.png')
-                    img = cv2.imread('buffer1.png')
-                    out = skimage.transform.resize(img,
-                                                   (SIZE, SIZE),
-                                                   mode='edge',
-                                                   anti_aliasing=False,
-                                                   anti_aliasing_sigma=None,
-                                                   preserve_range=True,
-                                                   order=0)
-                    cv2.imwrite(save_path, out)
-                    os.remove("buffer0.png")
-                    os.remove("buffer1.png")
-                print(f'Saved!')
+                # open with opencv to resize and then with rasterio save
+                img = cv2.imread('buffer.png')
+                img = skimage.transform.resize(img,
+                                               (SIZE, SIZE),
+                                               mode='edge',
+                                               anti_aliasing=False,
+                                               anti_aliasing_sigma=None,
+                                               preserve_range=True,
+                                               order=0)
+                cv2.imwrite('buffer.png', img)
+
+                with rasterio.open('buffer.png') as src:
+                    img = src.read(1).squeeze()
+                    classCount = np.unique(img)
+                    Image.fromarray(img).save(save_path)
+                    os.remove("buffer.png")
+
+                print(f'Saved!\tClasses: {classCount}')
 
             except KeyError as e:
                 image = np.zeros((SIZE, SIZE), dtype=np.uint8)
                 Image.fromarray(image).save(save_path)
-                print("> Feature was not loaded properly OR no polygons to draw; saving GT with all zeros")
+                print(">         Feature was not loaded properly OR no polygons to draw; saved GT with all zeros")
                 #print(f"------- ERROR with file {fname}: {e} -------\n"
                       #f"\t> Features were not loaded properly\n"
                       #f"\tfeature = data1['features']['xy']\n"
@@ -123,7 +113,7 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
     if tif2composite:
         GLOBAL_count = 0
         for fname in os.listdir(tif_root):  # inside directory
-            temp_str = f'{GLOBAL_count} Saving {fname}...'
+            temp_str = f'{GLOBAL_count:>5} Saving {fname}...'
             print(f'{temp_str:<70}', end="", flush=True)
 
             tiff_file = os.path.join(tif_root, fname)
