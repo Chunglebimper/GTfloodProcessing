@@ -21,15 +21,15 @@ def send_to_dir(prefix, fname):
     save_dir = None
     for word in fname.split('_'):
         if word == 'post':
-            save_dir = f'./data/{prefix}_post'
+            save_dir = f'data1/{prefix}_post'
         elif word == 'pre':
-            save_dir = f'./data/{prefix}_pre'
+            save_dir = f'data1/{prefix}_pre'
     return save_dir
 
 
 def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
     global GLOBAL_count
-    for newDir in ('./data', './data/gt_post', './data/gt_pre', './data/img_post', './data/img_pre'):
+    for newDir in ('./data1', './data1/gt_post', './data1/gt_pre', './data1/img_post', './data1/img_pre'):
         os.makedirs(newDir, exist_ok=True)
 
     if drawJSON:
@@ -60,10 +60,20 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
                     color = {
                         'no-damage': '#010101',
                         'minor-damage': '#020202',
+                        'major-damage': '#030303',
+                        'destroyed': '#040404',
+                    }.get(level_of_destruction, '#000000')  # Default to black if level_of_destruction is invalid
+
+                    """
+                    # Add polygon overlay and determine color of edge
+                    color = {
+                        'no-damage': '#010101',
+                        'minor-damage': '#020202',
                         'moderate-damage': '#030303',
                         'major-damage': '#040404',
                         'destroyed': '#050505',
                     }.get(level_of_destruction, '#000000')  # Default to black if level_of_destruction is invalid
+                    """
 
                     # Create patch with color handling from above
                     patch = patches.Polygon(coords, closed=True, edgecolor=color, facecolor=color, fill=True,
@@ -101,7 +111,7 @@ def generate_func(drawJSON, json_root, tif2composite, tif_root, SIZE):
                 print("> Feature was not loaded properly OR no polygons to draw; saving GT with all zeros")
                 #print(f"------- ERROR with file {fname}: {e} -------\n"
                       #f"\t> Features were not loaded properly\n"
-                      #f"\tfeature = data['features']['xy']\n"
+                      #f"\tfeature = data1['features']['xy']\n"
                       #f"\tlevel_of_destruction = feature['properties']['subtype']\n"
                       #f"\twkt_str = feature['wkt']\n",
                       #86*"^")
